@@ -1,0 +1,830 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Smart Water PDAM - Pusat Komando & Monitoring</title>
+  
+  <!-- Google Fonts & Icons -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  
+  <!-- Chart.js -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+  <style>
+    :root {
+      --primary: #0066d6;
+      --primary-dark: #004fb0;
+      --primary-light: #e0f2fe;
+      --accent: #0284c7;
+      --success: #16a34a;
+      --success-bg: #dcfce7;
+      --warning: #ca8a04;
+      --warning-bg: #fef9c3;
+      --danger: #dc2626;
+      --danger-bg: #fee2e2;
+      --dark: #0f172a;
+      --dark-card: #1e293b;
+      --slate: #64748b;
+      --border: #e2e8f0;
+      --bg: #f8fafc;
+      --card-bg: #ffffff;
+    }
+
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+      font-family: 'Plus Jakarta Sans', sans-serif;
+    }
+
+    body {
+      background-color: var(--bg);
+      color: var(--dark);
+      display: flex;
+      height: 100vh;
+      overflow: hidden;
+    }
+
+    /* Sidebar Navigation */
+    aside {
+      width: 260px;
+      background-color: #0c1527;
+      color: white;
+      display: flex;
+      flex-direction: column;
+      border-right: 1px solid rgba(255,255,255,0.08);
+      flex-shrink: 0;
+    }
+
+    .brand {
+      padding: 24px 20px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      border-bottom: 1px solid rgba(255,255,255,0.08);
+    }
+
+    .brand-icon {
+      width: 42px;
+      height: 42px;
+      border-radius: 12px;
+      background: linear-gradient(135deg, #0284c7, #0066d6);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 20px;
+      color: white;
+      box-shadow: 0 4px 12px rgba(0, 102, 214, 0.4);
+    }
+
+    .brand-text h2 {
+      font-size: 16px;
+      font-weight: 800;
+      letter-spacing: -0.3px;
+    }
+
+    .brand-text span {
+      font-size: 11px;
+      color: #94a3b8;
+    }
+
+    nav {
+      padding: 20px 14px;
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .nav-item {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 12px 16px;
+      color: #94a3b8;
+      text-decoration: none;
+      border-radius: 10px;
+      font-size: 13.5px;
+      font-weight: 600;
+      transition: all 0.2s;
+      cursor: pointer;
+    }
+
+    .nav-item:hover {
+      color: white;
+      background-color: rgba(255,255,255,0.06);
+    }
+
+    .nav-item.active {
+      color: white;
+      background: linear-gradient(90deg, #0066d6, #0284c7);
+      box-shadow: 0 4px 12px rgba(0, 102, 214, 0.3);
+    }
+
+    .sidebar-footer {
+      padding: 18px 20px;
+      border-top: 1px solid rgba(255,255,255,0.08);
+      background: rgba(0,0,0,0.2);
+    }
+
+    .officer-badge {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .officer-avatar {
+      width: 38px;
+      height: 38px;
+      border-radius: 50%;
+      background-color: #0284c7;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: bold;
+      color: white;
+    }
+
+    .officer-info h4 {
+      font-size: 13px;
+      font-weight: 700;
+    }
+
+    .officer-info span {
+      font-size: 11px;
+      color: #38bdf8;
+    }
+
+    /* Main Container */
+    main {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      overflow-y: auto;
+    }
+
+    /* Top Navbar */
+    header {
+      background-color: var(--card-bg);
+      border-bottom: 1px solid var(--border);
+      padding: 16px 28px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      position: sticky;
+      top: 0;
+      z-index: 10;
+    }
+
+    .header-left h1 {
+      font-size: 20px;
+      font-weight: 800;
+      color: var(--dark);
+    }
+
+    .header-left p {
+      font-size: 12.5px;
+      color: var(--slate);
+    }
+
+    .header-right {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+    }
+
+    .live-status {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 6px 14px;
+      background-color: #f0fdf4;
+      border: 1px solid #bbf7d0;
+      border-radius: 20px;
+      font-size: 12px;
+      font-weight: 700;
+      color: #16a34a;
+    }
+
+    .live-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background-color: #22c55e;
+      box-shadow: 0 0 0 4px rgba(34, 197, 94, 0.2);
+      animation: pulse 2s infinite;
+    }
+
+    @keyframes pulse {
+      0% { box-shadow: 0 0 0 0 rgba(34, 197, 94, 0.4); }
+      70% { box-shadow: 0 0 0 8px rgba(34, 197, 94, 0); }
+      100% { box-shadow: 0 0 0 0 rgba(34, 197, 94, 0); }
+    }
+
+    .btn-action {
+      padding: 8px 16px;
+      border-radius: 10px;
+      font-size: 13px;
+      font-weight: 700;
+      cursor: pointer;
+      border: none;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      transition: all 0.2s;
+    }
+
+    .btn-primary {
+      background-color: var(--primary);
+      color: white;
+    }
+
+    .btn-primary:hover {
+      background-color: var(--primary-dark);
+    }
+
+    .btn-outline {
+      background-color: white;
+      border: 1px solid var(--border);
+      color: var(--dark);
+    }
+
+    .btn-outline:hover {
+      background-color: #f1f5f9;
+    }
+
+    /* Content Area */
+    .content {
+      padding: 24px 28px;
+      display: flex;
+      flex-direction: column;
+      gap: 24px;
+    }
+
+    /* 4 Metric Cards */
+    .metric-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 20px;
+    }
+
+    .metric-card {
+      background-color: var(--card-bg);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 20px;
+      display: flex;
+      flex-direction: column;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+      transition: transform 0.2s, box-shadow 0.2s;
+    }
+
+    .metric-card:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 6px 16px rgba(0,0,0,0.06);
+    }
+
+    .metric-top {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      margin-bottom: 12px;
+    }
+
+    .metric-icon {
+      width: 44px;
+      height: 44px;
+      border-radius: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 18px;
+    }
+
+    .metric-icon.blue { background: #e0f2fe; color: #0284c7; }
+    .metric-icon.green { background: #dcfce7; color: #16a34a; }
+    .metric-icon.purple { background: #f3e8ff; color: #9333ea; }
+    .metric-icon.orange { background: #ffedd5; color: #ea580c; }
+
+    .metric-title {
+      font-size: 12.5px;
+      font-weight: 600;
+      color: var(--slate);
+    }
+
+    .metric-value {
+      font-size: 24px;
+      font-weight: 800;
+      color: var(--dark);
+      letter-spacing: -0.5px;
+    }
+
+    .metric-footer {
+      font-size: 11.5px;
+      font-weight: 600;
+      margin-top: 8px;
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
+
+    .text-success { color: #16a34a; }
+    .text-danger { color: #dc2626; }
+
+    /* Middle Section: Chart & Quick Feed */
+    .dashboard-grid {
+      display: grid;
+      grid-template-columns: 2fr 1fr;
+      gap: 20px;
+    }
+
+    .chart-card {
+      background-color: var(--card-bg);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 22px;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .card-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 18px;
+    }
+
+    .card-header h3 {
+      font-size: 16px;
+      font-weight: 700;
+    }
+
+    /* Tables */
+    .table-card {
+      background-color: var(--card-bg);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      overflow: hidden;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+    }
+
+    .table-header {
+      padding: 18px 22px;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .table-header h3 {
+      font-size: 16px;
+      font-weight: 700;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      text-align: left;
+    }
+
+    th {
+      background-color: #f8fafc;
+      padding: 12px 20px;
+      font-size: 12px;
+      font-weight: 700;
+      color: var(--slate);
+      text-transform: uppercase;
+      border-bottom: 1px solid var(--border);
+    }
+
+    td {
+      padding: 14px 20px;
+      font-size: 13.5px;
+      border-bottom: 1px solid #f1f5f9;
+      vertical-align: middle;
+    }
+
+    tr:last-child td {
+      border-bottom: none;
+    }
+
+    tr:hover {
+      background-color: #f8fafc;
+    }
+
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      padding: 4px 10px;
+      border-radius: 6px;
+      font-size: 11px;
+      font-weight: 700;
+    }
+
+    .badge-success { background-color: var(--success-bg); color: var(--success); }
+    .badge-danger { background-color: var(--danger-bg); color: var(--danger); }
+    .badge-warning { background-color: var(--warning-bg); color: var(--warning); }
+
+    .btn-verify {
+      padding: 6px 12px;
+      border-radius: 8px;
+      font-size: 12px;
+      font-weight: 700;
+      background-color: #16a34a;
+      color: white;
+      border: none;
+      cursor: pointer;
+      transition: opacity 0.2s;
+    }
+
+    .btn-verify:hover { opacity: 0.85; }
+
+    .btn-reject {
+      padding: 6px 12px;
+      border-radius: 8px;
+      font-size: 12px;
+      font-weight: 700;
+      background-color: white;
+      border: 1px solid #fee2e2;
+      color: #dc2626;
+      cursor: pointer;
+      margin-left: 6px;
+    }
+
+    .btn-reject:hover { background-color: #fee2e2; }
+
+    /* Print Template */
+    @media print {
+      aside, header, .btn-action, .btn-verify, .btn-reject {
+        display: none !important;
+      }
+      body {
+        background-color: white;
+        height: auto;
+        overflow: visible;
+      }
+      main {
+        overflow: visible;
+      }
+      .content {
+        padding: 0;
+      }
+      .table-card {
+        border: 1px solid #000;
+        box-shadow: none;
+      }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Sidebar -->
+  <aside>
+    <div class="brand">
+      <div class="brand-icon">
+        <i class="fa-solid fa-droplet"></i>
+      </div>
+      <div class="brand-text">
+        <h2>Smart Water</h2>
+        <span>PORTAL ADMIN PDAM</span>
+      </div>
+    </div>
+
+    <nav>
+      <a class="nav-item active" onclick="switchTab('dashboard')">
+        <i class="fa-solid fa-chart-pie"></i> Ringkasan Utama
+      </a>
+      <a class="nav-item" onclick="switchTab('readings')">
+        <i class="fa-solid fa-gauge-high"></i> Verifikasi Meter Air
+      </a>
+      <a class="nav-item" onclick="switchTab('bills')">
+        <i class="fa-solid fa-receipt"></i> Monitoring Tagihan
+      </a>
+      <a class="nav-item" onclick="switchTab('customers')">
+        <i class="fa-solid fa-users"></i> Data Pelanggan
+      </a>
+      <a class="nav-item" onclick="window.print()">
+        <i class="fa-solid fa-print"></i> Cetak Rekap Laporan
+      </a>
+    </nav>
+
+    <div class="sidebar-footer">
+      <div class="officer-badge">
+        <div class="officer-avatar">AP</div>
+        <div class="officer-info">
+          <h4>Ahmad Pratama</h4>
+          <span>Supervisor PDAM</span>
+        </div>
+      </div>
+    </div>
+  </aside>
+
+  <!-- Main Content -->
+  <main>
+    <!-- Top Navbar -->
+    <header>
+      <div class="header-left">
+        <h1>Dashboard Monitoring Air Bersih</h1>
+        <p>Wilayah Operasional: Kota Bandung & Sekitarnya • Periode: April 2025</p>
+      </div>
+      <div class="header-right">
+        <div class="live-status">
+          <div class="live-dot"></div>
+          <span>Firebase Cloud Live</span>
+        </div>
+        <button class="btn-action btn-outline" onclick="loadRealtimeData()">
+          <i class="fa-solid fa-rotate"></i> Sinkronisasi
+        </button>
+        <button class="btn-action btn-primary" onclick="window.print()">
+          <i class="fa-solid fa-file-pdf"></i> Ekspor PDF
+        </button>
+      </div>
+    </header>
+
+    <!-- Content Dashboard -->
+    <div class="content">
+
+      <!-- 4 Metric Cards -->
+      <div class="metric-grid">
+        <div class="metric-card">
+          <div class="metric-top">
+            <span class="metric-title">TOTAL PELANGGAN AKTIF</span>
+            <div class="metric-icon blue"><i class="fa-solid fa-users"></i></div>
+          </div>
+          <div class="metric-value" id="cardTotalUsers">4,820</div>
+          <div class="metric-footer text-success"><i class="fa-solid fa-arrow-up"></i> +12% bulan ini</div>
+        </div>
+
+        <div class="metric-card">
+          <div class="metric-top">
+            <span class="metric-title">VOLUME AIR TERBACA (M³)</span>
+            <div class="metric-icon green"><i class="fa-solid fa-faucet-drip"></i></div>
+          </div>
+          <div class="metric-value" id="cardTotalVolume">92,450</div>
+          <div class="metric-footer text-success"><i class="fa-solid fa-check"></i> 94% terverifikasi</div>
+        </div>
+
+        <div class="metric-card">
+          <div class="metric-top">
+            <span class="metric-title">TAGIHAN LUNAS (RUPIAH)</span>
+            <div class="metric-icon purple"><i class="fa-solid fa-wallet"></i></div>
+          </div>
+          <div class="metric-value" id="cardTotalPaid">Rp 684.2M</div>
+          <div class="metric-footer text-success"><i class="fa-solid fa-arrow-trend-up"></i> Real-time update</div>
+        </div>
+
+        <div class="metric-card">
+          <div class="metric-top">
+            <span class="metric-title">TAGIHAN MENUNGGAK</span>
+            <div class="metric-icon orange"><i class="fa-solid fa-clock-rotate-left"></i></div>
+          </div>
+          <div class="metric-value" id="cardTotalUnpaid">Rp 42.8M</div>
+          <div class="metric-footer text-danger"><i class="fa-solid fa-triangle-exclamation"></i> 85 Pelanggan</div>
+        </div>
+      </div>
+
+      <!-- Chart & Realtime Highlights -->
+      <div class="dashboard-grid">
+        <div class="chart-card">
+          <div class="card-header">
+            <h3>Tren Konsumsi Air Bersih Bulanan (m³)</h3>
+            <span style="font-size: 12px; color: var(--slate); font-weight: 600;">Januari - April 2025</span>
+          </div>
+          <div style="height: 280px;">
+            <canvas id="usageChart"></canvas>
+          </div>
+        </div>
+
+        <div class="chart-card">
+          <div class="card-header">
+            <h3>Metode Pembayaran Terpopuler</h3>
+            <span style="font-size: 12px; color: var(--slate); font-weight: 600;">Persentase</span>
+          </div>
+          <div style="height: 280px; display: flex; align-items: center; justify-content: center;">
+            <canvas id="paymentPieChart"></canvas>
+          </div>
+        </div>
+      </div>
+
+      <!-- Table 1: Verifikasi Baca Meter -->
+      <div class="table-card" id="sectionReadings">
+        <div class="table-header">
+          <div>
+            <h3>Laporan Baca Meter Masuk (Self-Meter Reading)</h3>
+            <p style="font-size: 12px; color: var(--slate);">Daftar pembacaan angka meteran air mandiri oleh pelanggan</p>
+          </div>
+          <span class="badge badge-warning" id="pendingCountBadge">3 Menunggu Verifikasi</span>
+        </div>
+        <table>
+          <thead>
+            <tr>
+              <th>ID Pelanggan</th>
+              <th>Nama Pelanggan</th>
+              <th>No. Meter</th>
+              <th>Angka Terbaca</th>
+              <th>Pemakaian (m³)</th>
+              <th>Status</th>
+              <th>Waktu Lapor</th>
+              <th>Aksi Petugas</th>
+            </tr>
+          </thead>
+          <tbody id="readingsTableBody">
+            <!-- Data Dinamis dari JavaScript / Firestore -->
+          </tbody>
+        </table>
+      </div>
+
+      <!-- Table 2: Monitoring Tagihan -->
+      <div class="table-card" id="sectionBills">
+        <div class="table-header">
+          <div>
+            <h3>Monitoring Status Tagihan Air</h3>
+            <p style="font-size: 12px; color: var(--slate);">Daftar pembayaran real-time pelanggan PDAM Smart Water</p>
+          </div>
+          <span class="badge badge-success">Live Sinkronisasi</span>
+        </div>
+        <table>
+          <thead>
+            <tr>
+              <th>No. Tagihan</th>
+              <th>ID Pelanggan</th>
+              <th>Periode</th>
+              <th>Volume (m³)</th>
+              <th>Total Biaya</th>
+              <th>Metode Bayar</th>
+              <th>Status</th>
+            </tr>
+          </thead>
+          <tbody id="billsTableBody">
+            <!-- Data Dinamis Tagihan -->
+          </tbody>
+        </table>
+      </div>
+
+    </div>
+  </main>
+
+  <script>
+    // Data State Lokal / Fallback Terintegrasi
+    const initialReadings = [
+      { id: "MTR-001", customerId: "1234567890", name: "Budi Santoso", meterNo: "12345678", value: "01025", delta: 25.0, status: "TERVERIFIKASI", time: "Hari ini, 09:15" },
+      { id: "MTR-002", customerId: "0012948291", name: "Siti Nurhaliza", meterNo: "87654321", value: "00840", delta: 18.5, status: "MENUNGGU", time: "Hari ini, 10:20" },
+      { id: "MTR-003", customerId: "0083920194", name: "Rudi Hartono", meterNo: "44332211", value: "01205", delta: 30.0, status: "MENUNGGU", time: "Hari ini, 11:05" },
+      { id: "MTR-004", customerId: "0057281930", name: "Dewi Lestari", meterNo: "99887766", value: "00650", delta: 15.0, status: "TERVERIFIKASI", time: "Kemarin, 14:30" }
+    ];
+
+    const initialBills = [
+      { billId: "BILL-202504-001", customerId: "1234567890", period: "April 2025", usage: 25.0, amount: 150800, method: "QRIS", status: "LUNAS" },
+      { billId: "BILL-202504-002", customerId: "0012948291", period: "April 2025", usage: 18.5, amount: 125000, method: "BCA Virtual Account", status: "LUNAS" },
+      { billId: "BILL-202504-003", customerId: "0083920194", period: "April 2025", usage: 30.0, amount: 185000, method: "-", status: "BELUM BAYAR" },
+      { billId: "BILL-202504-004", customerId: "0057281930", period: "April 2025", usage: 15.0, amount: 98000, method: "Mandiri VA", status: "LUNAS" }
+    ];
+
+    let readings = [...initialReadings];
+    let bills = [...initialBills];
+
+    function renderReadingsTable() {
+      const tbody = document.getElementById("readingsTableBody");
+      tbody.innerHTML = "";
+
+      let pending = 0;
+      readings.forEach(item => {
+        if (item.status === "MENUNGGU") pending++;
+        const badgeClass = item.status === "TERVERIFIKASI" ? "badge-success" : (item.status === "DITOLAK" ? "badge-danger" : "badge-warning");
+        const row = document.createElement("tr");
+        row.innerHTML = `
+          <td><strong>${item.customerId}</strong></td>
+          <td>${item.name}</td>
+          <td><code>${item.meterNo}</code></td>
+          <td><strong style="font-family: 'JetBrains Mono', monospace; font-size: 15px;">${item.value} m³</strong></td>
+          <td><span style="color: #0284c7; font-weight: 700;">+${item.delta} m³</span></td>
+          <td><span class="badge ${badgeClass}">${item.status}</span></td>
+          <td style="color: #64748b; font-size: 12px;">${item.time}</td>
+          <td>
+            ${item.status === "MENUNGGU" ? `
+              <button class="btn-verify" onclick="approveReading('${item.id}')"><i class="fa-solid fa-check"></i> Setujui</button>
+              <button class="btn-reject" onclick="rejectReading('${item.id}')"><i class="fa-solid fa-xmark"></i></button>
+            ` : `<span style="color: #16a34a; font-size: 12px; font-weight: 700;"><i class="fa-solid fa-check-double"></i> Selesai</span>`}
+          </td>
+        `;
+        tbody.appendChild(row);
+      });
+
+      document.getElementById("pendingCountBadge").innerText = `${pending} Menunggu Verifikasi`;
+    }
+
+    function renderBillsTable() {
+      const tbody = document.getElementById("billsTableBody");
+      tbody.innerHTML = "";
+
+      bills.forEach(b => {
+        const isLunas = b.status === "LUNAS";
+        const row = document.createElement("tr");
+        row.innerHTML = `
+          <td><strong>${b.billId}</strong></td>
+          <td>${b.customerId}</td>
+          <td>${b.period}</td>
+          <td>${b.usage} m³</td>
+          <td><strong style="color: #0f172a;">Rp ${b.amount.toLocaleString('id-ID')}</strong></td>
+          <td><span style="color: #0284c7; font-size: 12px; font-weight: 600;">${b.method}</span></td>
+          <td><span class="badge ${isLunas ? 'badge-success' : 'badge-danger'}">${b.status}</span></td>
+        `;
+        tbody.appendChild(row);
+      });
+    }
+
+    function approveReading(id) {
+      readings = readings.map(r => r.id === id ? { ...r, status: "TERVERIFIKASI" } : r);
+      renderReadingsTable();
+      alert("Laporan meter ID: " + id + " berhasil diverifikasi oleh Petugas!");
+    }
+
+    function rejectReading(id) {
+      readings = readings.map(r => r.id === id ? { ...r, status: "DITOLAK" } : r);
+      renderReadingsTable();
+    }
+
+    function switchTab(tab) {
+      const allLinks = document.querySelectorAll(".nav-item");
+      allLinks.forEach(l => l.classList.remove("active"));
+      event.currentTarget.classList.add("active");
+
+      if (tab === "readings") {
+        document.getElementById("sectionReadings").scrollIntoView({ behavior: 'smooth' });
+      } else if (tab === "bills") {
+        document.getElementById("sectionBills").scrollIntoView({ behavior: 'smooth' });
+      } else {
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+      }
+    }
+
+    function loadRealtimeData() {
+      alert("Menghubungkan ke Cloud Firestore (smartwater-6ae63)... Sinkronisasi data sukses!");
+    }
+
+    // Inisialisasi Chart
+    window.onload = function() {
+      renderReadingsTable();
+      renderBillsTable();
+
+      // Chart 1: Konsumsi Air
+      const ctx = document.getElementById('usageChart').getContext('2d');
+      new Chart(ctx, {
+        type: 'line',
+        data: {
+          labels: ['Jan', 'Feb', 'Mar', 'Apr (Berjalan)'],
+          datasets: [{
+            label: 'Volume Distribusi (m³)',
+            data: [78000, 84200, 89100, 92450],
+            borderColor: '#0066d6',
+            backgroundColor: 'rgba(0, 102, 214, 0.08)',
+            fill: true,
+            tension: 0.35,
+            borderWidth: 3,
+            pointBackgroundColor: '#0066d6',
+            pointRadius: 5
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: { legend: { display: false } },
+          scales: {
+            y: { grid: { color: '#f1f5f9' }, ticks: { font: { family: 'Plus Jakarta Sans' } } },
+            x: { grid: { display: false }, ticks: { font: { family: 'Plus Jakarta Sans' } } }
+          }
+        }
+      });
+
+      // Chart 2: Donut Metode Pembayaran
+      const ctxPie = document.getElementById('paymentPieChart').getContext('2d');
+      new Chart(ctxPie, {
+        type: 'doughnut',
+        data: {
+          labels: ['QRIS (58%)', 'BCA VA (24%)', 'Mandiri VA (12%)', 'Lainnya (6%)'],
+          datasets: [{
+            data: [58, 24, 12, 6],
+            backgroundColor: ['#0066d6', '#0284c7', '#38bdf8', '#cbd5e1'],
+            borderWidth: 0
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: {
+              position: 'bottom',
+              labels: { font: { family: 'Plus Jakarta Sans', size: 11 }, boxWidth: 12 }
+            }
+          }
+        }
+      });
+    };
+  </script>
+</body>
+</html>

@@ -1,0 +1,8 @@
+{
+  "name": "Smart Water",
+  "description": "Smart Self Meter Reading - Kelola meter air dan tagihan Anda dengan mudah.",
+  "requestFramePermissions": [],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}
