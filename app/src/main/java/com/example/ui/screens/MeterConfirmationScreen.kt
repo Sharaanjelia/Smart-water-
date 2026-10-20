@@ -70,10 +70,23 @@ fun MeterConfirmationScreen(
     onNavigateBack: () -> Unit,
     onSubmitReport: (String) -> Unit,
     onPayNow: () -> Unit,
+    detectedValue: String = "01358",
+    previousValue: String = "01000",
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
     var showSuccessDialog by remember { mutableStateOf(false) }
+
+    // Perhitungan dinamis pemakaian dan tagihan
+    val currentNum = detectedValue.toDoubleOrNull() ?: 0.0
+    val prevNum = previousValue.toDoubleOrNull() ?: 0.0
+    val isValid = currentNum >= prevNum
+    val usageM3 = if (isValid) (currentNum - prevNum) else 0.0
+    val tariffPerM3 = 150L // Prototype tarif simulasi Rp 150/m3
+    val adminFee = 2500L
+    val estimatedBill = (usageM3 * tariffPerM3).toLong() + adminFee
+
+    val formattedDigits = detectedValue.padStart(5, '0').toList().joinToString(" ")
 
     Box(
         modifier = modifier
@@ -127,6 +140,29 @@ fun MeterConfirmationScreen(
                     modifier = Modifier.padding(start = 4.dp, bottom = 12.dp)
                 )
 
+                // Banner Peringatan jika angka tidak valid
+                if (!isValid) {
+                    Card(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(bottom = 12.dp),
+                        colors = CardDefaults.cardColors(containerColor = Color(0xFFFEE2E2)),
+                        shape = RoundedCornerShape(12.dp)
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(14.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(
+                                text = "⚠️ Angka meter saat ini ($detectedValue m³) lebih kecil dari angka sebelumnya ($previousValue m³). Harap foto ulang atau periksa kembali angka meter Anda.",
+                                fontSize = 12.sp,
+                                color = Color(0xFFDC2626),
+                                fontWeight = FontWeight.SemiBold
+                            )
+                        }
+                    }
+                }
+
                 // Card: RINCIAN PEMAKAIAN
                 Card(
                     modifier = Modifier
@@ -169,13 +205,13 @@ fun MeterConfirmationScreen(
                                     color = Color(0xFF64748B)
                                 )
                                 Text(
-                                    text = "01 April 2025",
+                                    text = "Periode Sebelumnya",
                                     fontSize = 11.sp,
                                     color = Color(0xFF94A3B8)
                                 )
                             }
                             Text(
-                                text = "1.000 m³",
+                                text = "%,.0f m³".format(prevNum).replace(',', '.'),
                                 fontSize = 14.sp,
                                 fontWeight = FontWeight.Bold,
                                 color = Color(0xFF0F172A)
@@ -196,16 +232,16 @@ fun MeterConfirmationScreen(
                                 color = Color(0xFF64748B)
                             )
                             Text(
-                                text = "1.358 m³",
+                                text = "%,.0f m³".format(currentNum).replace(',', '.'),
                                 fontSize = 14.sp,
                                 fontWeight = FontWeight.Bold,
-                                color = Color(0xFF0F172A)
+                                color = if (isValid) Color(0xFF0F172A) else Color(0xFFDC2626)
                             )
                         }
 
                         Spacer(modifier = Modifier.height(16.dp))
 
-                        // Digital Display: 01358 in red/orange
+                        // Digital Display counter
                         Box(
                             modifier = Modifier
                                 .fillMaxWidth()
@@ -215,11 +251,11 @@ fun MeterConfirmationScreen(
                             contentAlignment = Alignment.Center
                         ) {
                             Text(
-                                text = "0 1 3 5 8",
+                                text = formattedDigits,
                                 fontSize = 24.sp,
                                 fontWeight = FontWeight.Bold,
                                 fontFamily = FontFamily.Monospace,
-                                color = Color(0xFFFF4834),
+                                color = if (isValid) Color(0xFFFF4834) else Color(0xFFF87171),
                                 letterSpacing = 4.sp,
                                 modifier = Modifier.testTag("digital_counter_01358")
                             )
@@ -227,7 +263,7 @@ fun MeterConfirmationScreen(
 
                         Spacer(modifier = Modifier.height(18.dp))
 
-                        // Big Highlight Row: Pemakaian 358 m³ | No. Meter 12345678
+                        // Big Highlight Row: Pemakaian & Status
                         Row(
                             modifier = Modifier.fillMaxWidth(),
                             horizontalArrangement = Arrangement.SpaceBetween,
@@ -240,10 +276,10 @@ fun MeterConfirmationScreen(
                                     color = Color(0xFF64748B)
                                 )
                                 Text(
-                                    text = "358 m³",
+                                    text = "%,.0f m³".format(usageM3).replace(',', '.'),
                                     fontSize = 26.sp,
                                     fontWeight = FontWeight.Bold,
-                                    color = SmartWaterPrimary,
+                                    color = if (isValid) SmartWaterPrimary else Color(0xFFDC2626),
                                     letterSpacing = (-0.5).sp,
                                     modifier = Modifier.testTag("pemakaian_highlight_text")
                                 )
@@ -251,15 +287,15 @@ fun MeterConfirmationScreen(
 
                             Column(horizontalAlignment = Alignment.End) {
                                 Text(
-                                    text = "No. Meter",
+                                    text = "Status Validasi",
                                     fontSize = 12.sp,
                                     color = Color(0xFF64748B)
                                 )
                                 Text(
-                                    text = "12345678",
-                                    fontSize = 15.sp,
+                                    text = if (isValid) "Sesuai Standar" else "Tidak Sesuai",
+                                    fontSize = 13.sp,
                                     fontWeight = FontWeight.Bold,
-                                    color = Color(0xFF0F172A)
+                                    color = if (isValid) Color(0xFF16A34A) else Color(0xFFDC2626)
                                 )
                             }
                         }
@@ -268,7 +304,7 @@ fun MeterConfirmationScreen(
 
                 Spacer(modifier = Modifier.height(16.dp))
 
-                // Card: Mar 2025 (Estimasi)
+                // Card: Estimasi Tagihan
                 Card(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -288,7 +324,7 @@ fun MeterConfirmationScreen(
                             .padding(18.dp)
                     ) {
                         Text(
-                            text = "Mar 2025 (Estimasi)",
+                            text = "Estimasi Tagihan Periode Ini",
                             fontSize = 13.sp,
                             fontWeight = FontWeight.SemiBold,
                             color = SmartWaterPrimary
@@ -297,8 +333,8 @@ fun MeterConfirmationScreen(
                         Spacer(modifier = Modifier.height(4.dp))
 
                         Text(
-                            text = "Rp 0",
-                            fontSize = 20.sp,
+                            text = "Rp %,d".format(estimatedBill).replace(',', '.'),
+                            fontSize = 22.sp,
                             fontWeight = FontWeight.Bold,
                             color = SmartWaterPrimary
                         )
@@ -306,8 +342,8 @@ fun MeterConfirmationScreen(
                         Spacer(modifier = Modifier.height(2.dp))
 
                         Text(
-                            text = "Belum ada informasi",
-                            fontSize = 12.sp,
+                            text = "Pemakaian %,.0f m³ × Rp 150 + Biaya Admin Rp 2.500".format(usageM3),
+                            fontSize = 11.sp,
                             color = Color(0xFF64748B)
                         )
                     }
@@ -328,13 +364,22 @@ fun MeterConfirmationScreen(
                 // Secondary Action: Kirim Laporan
                 OutlinedButton(
                     onClick = {
-                        showSuccessDialog = true
+                        if (isValid) {
+                            showSuccessDialog = true
+                        } else {
+                            Toast.makeText(
+                                context,
+                                "Gagal: Angka meter baru tidak boleh lebih kecil dari angka sebelumnya!",
+                                Toast.LENGTH_LONG
+                            ).show()
+                        }
                     },
+                    enabled = isValid,
                     shape = RoundedCornerShape(26.dp),
                     colors = ButtonDefaults.outlinedButtonColors(
                         contentColor = Color(0xFF334155)
                     ),
-                    border = BorderStroke(1.5.dp, Color(0xFFCBD5E1)),
+                    border = BorderStroke(1.5.dp, if (isValid) Color(0xFFCBD5E1) else Color(0xFFE2E8F0)),
                     modifier = Modifier
                         .weight(1f)
                         .height(52.dp)
@@ -351,7 +396,19 @@ fun MeterConfirmationScreen(
 
                 // Primary Action: Bayar Sekarang
                 Button(
-                    onClick = onPayNow,
+                    onClick = {
+                        if (isValid) {
+                            onSubmitReport(detectedValue)
+                            onPayNow()
+                        } else {
+                            Toast.makeText(
+                                context,
+                                "Gagal: Angka meter baru tidak boleh lebih kecil dari angka sebelumnya!",
+                                Toast.LENGTH_LONG
+                            ).show()
+                        }
+                    },
+                    enabled = isValid,
                     shape = RoundedCornerShape(26.dp),
                     colors = ButtonDefaults.buttonColors(
                         containerColor = SmartWaterPrimary,
@@ -383,11 +440,11 @@ fun MeterConfirmationScreen(
             AlertDialog(
                 onDismissRequest = { showSuccessDialog = false },
                 title = {
-                    Text(text = "Laporan Terkirim!", fontWeight = FontWeight.Bold)
+                    Text(text = "Laporan Terkirim! ✅", fontWeight = FontWeight.Bold)
                 },
                 text = {
                     Text(
-                        text = "Angka meter 01358 (Pemakaian 358 m³) berhasil dicatat untuk periode berjalan. Terima kasih telah melakukan pelaporan mandiri.",
+                        text = "Angka meter $detectedValue (Pemakaian %,.0f m³) berhasil dicatat di Firestore. Estimasi tagihan: Rp %,d. Terima kasih telah melakukan pelaporan mandiri.".format(usageM3, estimatedBill).replace(',', '.'),
                         fontSize = 14.sp,
                         color = Color(0xFF475569)
                     )
@@ -396,7 +453,7 @@ fun MeterConfirmationScreen(
                     Button(
                         onClick = {
                             showSuccessDialog = false
-                            onSubmitReport("01358")
+                            onSubmitReport(detectedValue)
                         },
                         colors = ButtonDefaults.buttonColors(containerColor = SmartWaterPrimary)
                     ) {

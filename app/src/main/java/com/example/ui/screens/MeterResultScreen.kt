@@ -32,6 +32,8 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -52,15 +54,27 @@ import com.example.ui.theme.SmartWaterPrimary
  * - Status: "Memperbaiki gambar... 75%"
  * - Bottom Bar: "Ambil Ulang" circular outlined button + "Lanjutkan" primary button
  */
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+
 @Composable
 fun MeterResultScreen(
     onNavigateBack: () -> Unit,
     onRetake: () -> Unit,
     onContinue: () -> Unit,
-    detectedValue: String = "1.358",
-    usageAmount: String = "358",
+    detectedValue: String = "00000",
+    previousValue: String = "00000",
+    usageAmount: String = "",
     modifier: Modifier = Modifier
 ) {
+    val authRepo = remember { com.example.data.repository.AuthRepository.getInstance() }
+    val currentUser by authRepo.currentUser.collectAsStateWithLifecycle()
+    val displayMeterNo = currentUser?.meterNumber?.ifEmpty { "-" } ?: "-"
+
+    val currentNum = detectedValue.toDoubleOrNull() ?: 0.0
+    val prevNum = previousValue.toDoubleOrNull() ?: 0.0
+    val calculatedUsage = (currentNum - prevNum).coerceAtLeast(0.0)
+    val displayUsage = if (usageAmount.isNotBlank()) usageAmount else "%.0f".format(calculatedUsage)
+
     Box(
         modifier = modifier
             .fillMaxSize()
@@ -273,7 +287,7 @@ fun MeterResultScreen(
                                 color = Color(0xFF64748B)
                             )
                             Text(
-                                text = "$usageAmount m³",
+                                text = "$displayUsage m³",
                                 fontSize = 14.sp,
                                 fontWeight = FontWeight.Bold,
                                 color = Color(0xFF0F172A)
@@ -293,7 +307,7 @@ fun MeterResultScreen(
                                 color = Color(0xFF64748B)
                             )
                             Text(
-                                text = "12345678",
+                                text = displayMeterNo,
                                 fontSize = 13.sp,
                                 fontWeight = FontWeight.SemiBold,
                                 color = Color(0xFF0F172A)

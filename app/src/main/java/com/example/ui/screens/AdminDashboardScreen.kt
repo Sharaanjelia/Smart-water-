@@ -23,13 +23,24 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material.icons.filled.Assessment
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.CloudDone
+import androidx.compose.material.icons.filled.CrisisAlert
+import androidx.compose.material.icons.filled.Factory
+import androidx.compose.material.icons.filled.Info
+import androidx.compose.material.icons.filled.Opacity
 import androidx.compose.material.icons.filled.People
 import androidx.compose.material.icons.filled.ReceiptLong
 import androidx.compose.material.icons.filled.Speed
+import androidx.compose.material.icons.filled.Warning
+import androidx.compose.material.icons.filled.Waves
+import com.example.data.repository.WaterMonitoringRepository
+import com.example.ui.components.ReservoirTankVisual
+import com.example.ui.components.WaterFlowPipelineVisual
+import kotlinx.coroutines.launch
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
@@ -78,17 +89,32 @@ import com.example.ui.theme.SmartWaterPrimary
 @Composable
 fun AdminDashboardScreen(
     onNavigateBack: () -> Unit,
+    onNavigateToReservoirDetail: () -> Unit = {},
+    onNavigateToDistributionNetwork: () -> Unit = {},
+    onNavigateToDistributionDetail: (String) -> Unit = {},
+    authRepository: com.example.data.repository.AuthRepository = com.example.data.repository.AuthRepository.getInstance(),
     meterRepository: MeterRepository = MeterRepository.getInstance(),
     billRepository: BillRepository = BillRepository.getInstance(),
+    walletRepository: com.example.data.repository.WalletRepository = com.example.data.repository.WalletRepository.getInstance(),
+    waterRepository: WaterMonitoringRepository = WaterMonitoringRepository.getInstance(),
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
+    val coroutineScope = androidx.compose.runtime.rememberCoroutineScope()
     var selectedTab by remember { mutableIntStateOf(0) }
 
-    val meterHistory by meterRepository.readingsHistory.collectAsStateWithLifecycle()
-    val billsList by billRepository.billsHistory.collectAsStateWithLifecycle()
+    // Mulai listener Firestore real-time saat Admin Dashboard dibuka
+    androidx.compose.runtime.LaunchedEffect(Unit) {
+        authRepository.observeAllCustomers()
+        meterRepository.observeAllMeterRecords()
+        billRepository.observeAllBills()
+        walletRepository.loadAllWithdrawalRequests()
+    }
 
-    var activeReadings by remember(meterHistory) { mutableStateOf(meterHistory) }
+    val meterRecords by meterRepository.allMeterRecords.collectAsStateWithLifecycle()
+    val billsList by billRepository.allBills.collectAsStateWithLifecycle()
+    val customersList by authRepository.allCustomers.collectAsStateWithLifecycle()
+    val withdrawalsList by walletRepository.allWithdrawalRequests.collectAsStateWithLifecycle()
 
     Box(
         modifier = modifier
@@ -164,7 +190,7 @@ fun AdminDashboardScreen(
                 }
             }
 
-            // Tab Navigation (3 Tabs)
+            // Tab Navigation (4 Tabs)
             TabRow(
                 selectedTabIndex = selectedTab,
                 containerColor = Color.White,
@@ -179,20 +205,26 @@ fun AdminDashboardScreen(
                 Tab(
                     selected = selectedTab == 0,
                     onClick = { selectedTab = 0 },
-                    text = { Text("Verifikasi Meter", fontWeight = FontWeight.SemiBold, fontSize = 12.sp) },
-                    icon = { Icon(Icons.Default.Speed, contentDescription = null, modifier = Modifier.size(18.dp)) }
+                    text = { Text("Laporan Meter", fontWeight = FontWeight.SemiBold, fontSize = 11.sp) },
+                    icon = { Icon(Icons.Default.Speed, contentDescription = null, modifier = Modifier.size(16.dp)) }
                 )
                 Tab(
                     selected = selectedTab == 1,
                     onClick = { selectedTab = 1 },
-                    text = { Text("Monitoring Tagihan", fontWeight = FontWeight.SemiBold, fontSize = 12.sp) },
-                    icon = { Icon(Icons.Default.ReceiptLong, contentDescription = null, modifier = Modifier.size(18.dp)) }
+                    text = { Text("Tagihan", fontWeight = FontWeight.SemiBold, fontSize = 11.sp) },
+                    icon = { Icon(Icons.Default.ReceiptLong, contentDescription = null, modifier = Modifier.size(16.dp)) }
                 )
                 Tab(
                     selected = selectedTab == 2,
                     onClick = { selectedTab = 2 },
-                    text = { Text("Pelanggan", fontWeight = FontWeight.SemiBold, fontSize = 12.sp) },
-                    icon = { Icon(Icons.Default.People, contentDescription = null, modifier = Modifier.size(18.dp)) }
+                    text = { Text("Pelanggan", fontWeight = FontWeight.SemiBold, fontSize = 11.sp) },
+                    icon = { Icon(Icons.Default.People, contentDescription = null, modifier = Modifier.size(16.dp)) }
+                )
+                Tab(
+                    selected = selectedTab == 3,
+                    onClick = { selectedTab = 3 },
+                    text = { Text("Monitoring Air", fontWeight = FontWeight.SemiBold, fontSize = 11.sp) },
+                    icon = { Icon(Icons.Default.Opacity, contentDescription = null, modifier = Modifier.size(16.dp)) }
                 )
             }
 
@@ -204,22 +236,43 @@ fun AdminDashboardScreen(
             ) {
                 when (selectedTab) {
                     0 -> VerificationTabContent(
-                        readings = activeReadings,
+                        readings = meterRecords,
                         onApprove = { id ->
-                            activeReadings = activeReadings.map {
-                                if (it.readingId == id) it.copy(status = "TERVERIFIKASI") else it
+                            coroutineScope.launch {
+                                meterRepository.updateRecordStatus(id, "TERVERIFIKASI")
                             }
                             Toast.makeText(context, "Laporan meter disetujui & diverifikasi!", Toast.LENGTH_SHORT).show()
                         },
                         onReject = { id ->
-                            activeReadings = activeReadings.map {
-                                if (it.readingId == id) it.copy(status = "DITOLAK") else it
+                            coroutineScope.launch {
+                                meterRepository.updateRecordStatus(id, "DITOLAK")
                             }
                             Toast.makeText(context, "Laporan meter ditolak", Toast.LENGTH_SHORT).show()
                         }
                     )
-                    1 -> BillingTabContent(bills = billsList)
-                    2 -> CustomerTabContent()
+                    1 -> BillingTabContent(
+                        bills = billsList,
+                        withdrawals = withdrawalsList,
+                        onApproveWithdrawal = { id ->
+                            coroutineScope.launch {
+                                walletRepository.updateWithdrawalStatus(id, "approved", "Disetujui petugas PDAM")
+                            }
+                            Toast.makeText(context, "Penarikan disetujui", Toast.LENGTH_SHORT).show()
+                        },
+                        onRejectWithdrawal = { id ->
+                            coroutineScope.launch {
+                                walletRepository.updateWithdrawalStatus(id, "rejected", "Ditolak petugas PDAM")
+                            }
+                            Toast.makeText(context, "Penarikan ditolak", Toast.LENGTH_SHORT).show()
+                        }
+                    )
+                    2 -> CustomerTabContent(customers = customersList)
+                    3 -> MonitoringTabContent(
+                        waterRepository = waterRepository,
+                        onNavigateToReservoirDetail = onNavigateToReservoirDetail,
+                        onNavigateToDistributionNetwork = onNavigateToDistributionNetwork,
+                        onNavigateToDistributionDetail = onNavigateToDistributionDetail
+                    )
                 }
             }
         }
@@ -297,9 +350,15 @@ private fun VerificationTabContent(
                                 color = Color(0xFF0F172A)
                             )
                             Text(
-                                text = "No. Meter: ${item.meterNumber}",
+                                text = "No. Meter: ${item.effectiveMeterId} • Zona: ${item.zone}",
                                 fontSize = 11.sp,
                                 color = Color(0xFF64748B)
+                            )
+                            Text(
+                                text = "Lalu: ${item.previousReading.toInt()} m³ ➔ Kini: ${item.currentReading.toInt()} m³",
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.SemiBold,
+                                color = SmartWaterPrimary
                             )
                         }
 
@@ -393,7 +452,12 @@ private fun VerificationTabContent(
 }
 
 @Composable
-private fun BillingTabContent(bills: List<Bill>) {
+private fun BillingTabContent(
+    bills: List<Bill>,
+    withdrawals: List<com.example.data.model.WithdrawalRequest> = emptyList(),
+    onApproveWithdrawal: (String) -> Unit = {},
+    onRejectWithdrawal: (String) -> Unit = {}
+) {
     val totalPaid = bills.filter { it.status == "LUNAS" }.sumOf { it.totalAmount }
     val totalUnpaid = bills.filter { it.status != "LUNAS" }.sumOf { it.totalAmount }
 
@@ -442,6 +506,70 @@ private fun BillingTabContent(bills: List<Bill>) {
                             fontWeight = FontWeight.Bold,
                             color = Color(0xFFDC2626)
                         )
+                    }
+                }
+            }
+        }
+
+        item {
+            if (withdrawals.isNotEmpty()) {
+                Text(
+                    text = "Permintaan Penarikan Saldo",
+                    fontSize = 13.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = Color(0xFF475569)
+                )
+                Spacer(modifier = Modifier.height(8.dp))
+            }
+        }
+
+        items(withdrawals.filter { it.status == "pending" }) { withdrawal ->
+            Card(
+                shape = RoundedCornerShape(12.dp),
+                colors = CardDefaults.cardColors(containerColor = Color.White),
+                elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Column(modifier = Modifier.padding(14.dp)) {
+                    Text(
+                        text = "Penarikan ke ${withdrawal.bankName}",
+                        fontSize = 14.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = Color(0xFF0F172A)
+                    )
+                    Text(
+                        text = "${withdrawal.accountHolder} • ${withdrawal.accountNumber}",
+                        fontSize = 11.sp,
+                        color = Color(0xFF64748B)
+                    )
+                    Spacer(modifier = Modifier.height(6.dp))
+                    Text(
+                        text = "Nominal: Rp %,d".format(withdrawal.amount).replace(',', '.'),
+                        fontSize = 15.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = Color(0xFF0F172A)
+                    )
+                    Spacer(modifier = Modifier.height(10.dp))
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        OutlinedButton(
+                            onClick = { onRejectWithdrawal(withdrawal.id) },
+                            modifier = Modifier.weight(1f),
+                            shape = RoundedCornerShape(10.dp),
+                            colors = ButtonDefaults.outlinedButtonColors(contentColor = Color(0xFFDC2626))
+                        ) {
+                            Text("Tolak")
+                        }
+                        Button(
+                            onClick = { onApproveWithdrawal(withdrawal.id) },
+                            modifier = Modifier.weight(1f),
+                            shape = RoundedCornerShape(10.dp),
+                            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF16A34A))
+                        ) {
+                            Text("Setujui")
+                        }
                     }
                 }
             }
@@ -512,14 +640,7 @@ private fun BillingTabContent(bills: List<Bill>) {
 }
 
 @Composable
-private fun CustomerTabContent() {
-    val dummyCustomers = listOf(
-        Triple("Budi Santoso", "1234567890", "Jl. Merdeka No. 45 • No. Meter 12345678"),
-        Triple("Siti Nurhaliza", "0012948291", "Jl. Sukajadi No. 12 • No. Meter 87654321"),
-        Triple("Rudi Hartono", "0083920194", "Jl. Asia Afrika No. 8 • No. Meter 44332211"),
-        Triple("Dewi Lestari", "0057281930", "Jl. Riau No. 104 • No. Meter 99887766")
-    )
-
+private fun CustomerTabContent(customers: List<com.example.data.model.User>) {
     LazyColumn(
         modifier = Modifier
             .fillMaxSize()
@@ -527,15 +648,48 @@ private fun CustomerTabContent() {
         verticalArrangement = Arrangement.spacedBy(10.dp)
     ) {
         item {
-            Text(
-                text = "Total Pelanggan Terdaftar: ${dummyCustomers.size}",
-                fontSize = 13.sp,
-                fontWeight = FontWeight.Bold,
-                color = Color(0xFF475569)
-            )
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = "Total Pelanggan Terdaftar: ${customers.size}",
+                    fontSize = 13.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = Color(0xFF475569)
+                )
+                Text(
+                    text = "Cloud Live Sync",
+                    fontSize = 10.sp,
+                    color = Color(0xFF16A34A),
+                    fontWeight = FontWeight.SemiBold
+                )
+            }
         }
 
-        items(dummyCustomers) { (name, id, address) ->
+        if (customers.isEmpty()) {
+            item {
+                Card(
+                    shape = RoundedCornerShape(12.dp),
+                    colors = CardDefaults.cardColors(containerColor = Color.White),
+                    modifier = Modifier.fillMaxWidth().padding(vertical = 20.dp)
+                ) {
+                    Box(
+                        modifier = Modifier.fillMaxWidth().padding(32.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            text = "Belum ada pelanggan terdaftar di Firestore.",
+                            fontSize = 13.sp,
+                            color = Color(0xFF94A3B8)
+                        )
+                    }
+                }
+            }
+        }
+
+        items(customers) { user ->
             Card(
                 shape = RoundedCornerShape(12.dp),
                 colors = CardDefaults.cardColors(containerColor = Color.White),
@@ -549,10 +703,32 @@ private fun CustomerTabContent() {
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Column {
-                        Text(text = name, fontSize = 14.sp, fontWeight = FontWeight.Bold, color = Color(0xFF0F172A))
-                        Text(text = "ID: $id", fontSize = 11.sp, color = SmartWaterPrimary, fontWeight = FontWeight.SemiBold)
-                        Text(text = address, fontSize = 11.sp, color = Color(0xFF64748B))
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = user.fullName.ifEmpty { "Pelanggan Smart Water" },
+                            fontSize = 14.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = Color(0xFF0F172A)
+                        )
+                        Spacer(modifier = Modifier.height(2.dp))
+                        Text(
+                            text = "ID: ${user.customerId} • No. Meter: ${user.meterNumber.ifEmpty { user.customerId }}",
+                            fontSize = 11.sp,
+                            color = SmartWaterPrimary,
+                            fontWeight = FontWeight.SemiBold
+                        )
+                        Text(
+                            text = "Zona: ${user.zone} • ${user.phoneNumber.ifEmpty { user.email }}",
+                            fontSize = 11.sp,
+                            color = Color(0xFF64748B)
+                        )
+                        if (user.address.isNotBlank()) {
+                            Text(
+                                text = user.address,
+                                fontSize = 10.sp,
+                                color = Color(0xFF94A3B8)
+                            )
+                        }
                     }
                     Box(
                         modifier = Modifier
@@ -564,6 +740,337 @@ private fun CustomerTabContent() {
                     }
                 }
             }
+        }
+    }
+}
+
+@Composable
+private fun MonitoringTabContent(
+    waterRepository: WaterMonitoringRepository,
+    onNavigateToReservoirDetail: () -> Unit,
+    onNavigateToDistributionNetwork: () -> Unit,
+    onNavigateToDistributionDetail: (String) -> Unit
+) {
+    val reservoir by waterRepository.reservoir.collectAsStateWithLifecycle()
+    val distributionPoints by waterRepository.distributionPoints.collectAsStateWithLifecycle()
+    val alerts by waterRepository.alerts.collectAsStateWithLifecycle()
+
+    LazyColumn(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(16.dp),
+        verticalArrangement = Arrangement.spacedBy(14.dp)
+    ) {
+        item {
+            // Notice Card
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(12.dp))
+                    .background(Color(0xFFEFF6FF))
+                    .border(1.dp, Color(0xFFBFDBFE), RoundedCornerShape(12.dp))
+                    .padding(horizontal = 12.dp, vertical = 10.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Info,
+                    contentDescription = null,
+                    tint = SmartWaterPrimary,
+                    modifier = Modifier.size(18.dp)
+                )
+                Spacer(modifier = Modifier.width(10.dp))
+                Column {
+                    Text(
+                        text = "Data Monitoring • Data Simulasi",
+                        fontSize = 11.5.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = Color(0xFF1E3A8A)
+                    )
+                    Text(
+                        text = "Monitoring kondisi level reservoir dan jaringan distribusi air PDAM.",
+                        fontSize = 10.5.sp,
+                        color = Color(0xFF3B82F6)
+                    )
+                }
+            }
+        }
+
+        // 4 KPI Summary Cards (2x2)
+        item {
+            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    AdminKpiCard(
+                        title = "Level Reservoir",
+                        value = "${reservoir.percentage}%",
+                        unit = "Kapasitas",
+                        info = "7.800 / 10.000 m³",
+                        icon = Icons.Default.Opacity,
+                        iconBg = Color(0xFFE0F2FE),
+                        iconTint = Color(0xFF0284C7),
+                        modifier = Modifier.weight(1f),
+                        onClick = onNavigateToReservoirDetail
+                    )
+                    val firstFlow = distributionPoints.firstOrNull()?.flowRateLps ?: 12.5
+                    AdminKpiCard(
+                        title = "Debit Air",
+                        value = "$firstFlow",
+                        unit = "L/s",
+                        info = "Distribusi A (Utama)",
+                        icon = Icons.Default.Waves,
+                        iconBg = Color(0xFFDCFCE7),
+                        iconTint = Color(0xFF16A34A),
+                        modifier = Modifier.weight(1f),
+                        onClick = { onNavigateToDistributionDetail("DIST-A") }
+                    )
+                }
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    val firstPressure = distributionPoints.firstOrNull()?.pressureBar ?: 2.8
+                    AdminKpiCard(
+                        title = "Tekanan Air",
+                        value = "$firstPressure",
+                        unit = "bar",
+                        info = "Jaringan Distribusi A",
+                        icon = Icons.Default.Speed,
+                        iconBg = Color(0xFFF3E8FF),
+                        iconTint = Color(0xFF9333EA),
+                        modifier = Modifier.weight(1f),
+                        onClick = onNavigateToDistributionNetwork
+                    )
+                    AdminKpiCard(
+                        title = "Status Reservoir",
+                        value = reservoir.status,
+                        unit = "",
+                        info = "Inflow ${reservoir.inflowRateLps} L/s",
+                        icon = Icons.Default.Factory,
+                        iconBg = Color(0xFFFEF3C7),
+                        iconTint = Color(0xFFD97706),
+                        modifier = Modifier.weight(1f),
+                        onClick = onNavigateToReservoirDetail
+                    )
+                }
+            }
+        }
+
+        // Reservoir Tank Visual Card
+        item {
+            Column {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = "Visualisasi Reservoir Air",
+                        fontSize = 14.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = Color(0xFF0F172A)
+                    )
+                    Text(
+                        text = "Detail Reservoir ➔",
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = SmartWaterPrimary,
+                        modifier = Modifier.clickable { onNavigateToReservoirDetail() }
+                    )
+                }
+                Spacer(modifier = Modifier.height(8.dp))
+                ReservoirTankVisual(reservoir = reservoir)
+            }
+        }
+
+        // Water Flow Pipeline Visual
+        item {
+            WaterFlowPipelineVisual(
+                reservoir = reservoir,
+                distributionPoints = distributionPoints,
+                onSelectDistributionPoint = onNavigateToDistributionDetail
+            )
+        }
+
+        // Monitoring Alert Card
+        item {
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                colors = CardDefaults.cardColors(containerColor = Color.White),
+                shape = RoundedCornerShape(16.dp),
+                border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFFE2E8F0))
+            ) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(16.dp)
+                ) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Icon(
+                                imageVector = Icons.Default.CrisisAlert,
+                                contentDescription = null,
+                                tint = Color(0xFFEA580C),
+                                modifier = Modifier.size(18.dp)
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text(
+                                text = "Monitoring Alert",
+                                fontSize = 13.5.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = Color(0xFF0F172A)
+                            )
+                        }
+                        Text(
+                            text = "${alerts.size} Peringatan",
+                            fontSize = 10.5.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = Color(0xFFDC2626)
+                        )
+                    }
+
+                    Spacer(modifier = Modifier.height(10.dp))
+
+                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        alerts.forEach { alert ->
+                            val isWarn = alert.type == "WARNING"
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .clip(RoundedCornerShape(8.dp))
+                                    .background(if (isWarn) Color(0xFFFFFBEB) else Color(0xFFF0FDF4))
+                                    .border(
+                                        1.dp,
+                                        if (isWarn) Color(0xFFFDE68A) else Color(0xFFBBF7D0),
+                                        RoundedCornerShape(8.dp)
+                                    )
+                                    .padding(10.dp),
+                                verticalAlignment = Alignment.Top
+                            ) {
+                                Icon(
+                                    imageVector = if (isWarn) Icons.Default.Warning else Icons.Default.Info,
+                                    contentDescription = null,
+                                    tint = if (isWarn) Color(0xFFD97706) else Color(0xFF16A34A),
+                                    modifier = Modifier.size(16.dp)
+                                )
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Column {
+                                    Text(
+                                        text = alert.title,
+                                        fontSize = 11.5.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = if (isWarn) Color(0xFF92400E) else Color(0xFF166534)
+                                    )
+                                    Text(
+                                        text = alert.message,
+                                        fontSize = 10.5.sp,
+                                        color = Color(0xFF475569)
+                                    )
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        // Action Link to Distribution Network
+        item {
+            Card(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clickable { onNavigateToDistributionNetwork() },
+                colors = CardDefaults.cardColors(containerColor = Color(0xFF0F172A)),
+                shape = RoundedCornerShape(14.dp)
+            ) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(14.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Column {
+                        Text(
+                            text = "Jaringan Distribusi Air",
+                            fontSize = 13.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = Color.White
+                        )
+                        Text(
+                            text = "Tekanan & debit 3 titik (Distribusi A, B, C)",
+                            fontSize = 10.5.sp,
+                            color = Color(0xFF94A3B8)
+                        )
+                    }
+                    Icon(
+                        imageVector = Icons.AutoMirrored.Filled.ArrowForward,
+                        contentDescription = null,
+                        tint = Color.White,
+                        modifier = Modifier.size(16.dp)
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun AdminKpiCard(
+    title: String,
+    value: String,
+    unit: String,
+    info: String,
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    iconBg: Color,
+    iconTint: Color,
+    modifier: Modifier = Modifier,
+    onClick: () -> Unit = {}
+) {
+    Card(
+        modifier = modifier
+            .shadow(1.dp, RoundedCornerShape(14.dp))
+            .clickable { onClick() },
+        shape = RoundedCornerShape(14.dp),
+        colors = CardDefaults.cardColors(containerColor = Color.White),
+        border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFFE2E8F0))
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(12.dp)
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(30.dp)
+                    .clip(RoundedCornerShape(8.dp))
+                    .background(iconBg),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    imageVector = icon,
+                    contentDescription = null,
+                    tint = iconTint,
+                    modifier = Modifier.size(16.dp)
+                )
+            }
+            Spacer(modifier = Modifier.height(8.dp))
+            Text(text = title, fontSize = 10.5.sp, color = Color(0xFF64748B), fontWeight = FontWeight.Medium)
+            Row(verticalAlignment = Alignment.Bottom) {
+                Text(text = value, fontSize = 18.sp, fontWeight = FontWeight.ExtraBold, color = Color(0xFF0F172A))
+                if (unit.isNotEmpty()) {
+                    Spacer(modifier = Modifier.width(3.dp))
+                    Text(text = unit, fontSize = 10.sp, color = Color(0xFF64748B))
+                }
+            }
+            Spacer(modifier = Modifier.height(2.dp))
+            Text(text = info, fontSize = 9.5.sp, color = Color(0xFF94A3B8))
         }
     }
 }

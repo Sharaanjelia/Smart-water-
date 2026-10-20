@@ -14,7 +14,9 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
@@ -138,8 +140,8 @@ fun RegisterScreen(
             // Field 2: No. Meter
             SmartWaterInputField(
                 value = meterNumber,
-                onValueChange = { meterNumber = it },
-                label = "No. Meter",
+                onValueChange = { if (it.length <= 11 && it.all { c -> c.isDigit() }) meterNumber = it },
+                label = "No. Meter (11 digit)",
                 placeholder = "Contoh: 00123456789",
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                 modifier = Modifier.testTag("register_input_meter")
@@ -150,9 +152,9 @@ fun RegisterScreen(
             // Field 3: No. HP
             SmartWaterInputField(
                 value = phoneNumber,
-                onValueChange = { phoneNumber = it },
-                label = "No. HP",
-                placeholder = "Contoh: 08123456789",
+                onValueChange = { if (it.length <= 15 && it.all { c -> c.isDigit() }) phoneNumber = it },
+                label = "No. HP (min. 12 digit)",
+                placeholder = "Contoh: 081234567890",
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone),
                 modifier = Modifier.testTag("register_input_phone")
             )
@@ -174,9 +176,9 @@ fun RegisterScreen(
             // Field 5: Buat PIN (6 digit)
             SmartWaterInputField(
                 value = pin,
-                onValueChange = { if (it.length <= 6) pin = it },
+                onValueChange = { if (it.length <= 6 && it.all { c -> c.isDigit() }) pin = it },
                 label = "Buat PIN (6 digit)",
-                placeholder = "• Buat PIN 6 digit",
+                placeholder = "• Masukkan 6 digit PIN",
                 visualTransformation = PasswordVisualTransformation(),
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.NumberPassword),
                 modifier = Modifier.testTag("register_input_pin")
@@ -187,27 +189,42 @@ fun RegisterScreen(
             // Button: Daftar
             Button(
                 onClick = {
-                    if (fullName.isNotBlank() && meterNumber.isNotBlank() && phoneNumber.isNotBlank() && pin.length >= 4) {
-                        authViewModel.register(
-                            fullName = fullName,
-                            meterNumber = meterNumber,
-                            phoneNumber = phoneNumber,
-                            address = address,
-                            pin = pin
-                        ) {
-                            Toast.makeText(
-                                context,
-                                "Pendaftaran berhasil! Selamat datang di Smart Water.",
-                                Toast.LENGTH_SHORT
-                            ).show()
-                            onRegisterSuccess()
+                    val cleanMeter = meterNumber.filter { it.isDigit() }
+                    val cleanPhone = phoneNumber.filter { it.isDigit() }
+                    val cleanPin = pin.filter { it.isDigit() }
+
+                    when {
+                        fullName.isBlank() -> {
+                            Toast.makeText(context, "Silakan isi nama lengkap Anda", Toast.LENGTH_SHORT).show()
                         }
-                    } else {
-                        Toast.makeText(
-                            context,
-                            "Lengkapi semua kolom formulir untuk mendaftar",
-                            Toast.LENGTH_SHORT
-                        ).show()
+                        cleanMeter.length != 11 -> {
+                            Toast.makeText(context, "Nomor meteran harus 11 digit angka", Toast.LENGTH_SHORT).show()
+                        }
+                        cleanPhone.length < 12 -> {
+                            Toast.makeText(context, "Nomor HP minimal 12 digit angka", Toast.LENGTH_SHORT).show()
+                        }
+                        address.isBlank() -> {
+                            Toast.makeText(context, "Silakan isi alamat lengkap Anda", Toast.LENGTH_SHORT).show()
+                        }
+                        cleanPin.length != 6 -> {
+                            Toast.makeText(context, "PIN harus tepat 6 digit angka", Toast.LENGTH_SHORT).show()
+                        }
+                        else -> {
+                            authViewModel.register(
+                                fullName = fullName.trim(),
+                                meterNumber = cleanMeter,
+                                phoneNumber = cleanPhone,
+                                address = address.trim(),
+                                pin = cleanPin
+                            ) {
+                                Toast.makeText(
+                                    context,
+                                    "Pendaftaran berhasil! Selamat datang di Smart Water.",
+                                    Toast.LENGTH_SHORT
+                                ).show()
+                                onRegisterSuccess()
+                            }
+                        }
                     }
                 },
                 enabled = authState !is AuthUiState.Loading,

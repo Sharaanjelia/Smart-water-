@@ -91,6 +91,20 @@ fun NotificationScreen(
 ) {
     val notificationList = listOf(
         NotificationItem(
+            id = "notif_air_1",
+            title = "✅ Layanan Air Normal",
+            description = "Sistem distribusi air berjalan normal. Tekanan dan debit di wilayah Anda sesuai standar.",
+            time = "1 jam lalu",
+            dotColor = Color(0xFF22C55E) // hijau — kondisi normal
+        ),
+        NotificationItem(
+            id = "notif_air_2",
+            title = "ℹ️ Pemeliharaan Jaringan",
+            description = "Pemeliharaan jaringan pipa di Sektor Utara dijadwalkan 16 April 2025, pukul 08.00–12.00 WIB. Siapkan cadangan air.",
+            time = "3 jam lalu",
+            dotColor = Color(0xFFF59E0B) // amber — info maintenance
+        ),
+        NotificationItem(
             id = "notif_1",
             title = "Pengingat Notifikasi",
             description = "Aktifkan notifikasi untuk menerima tagihan bulanan.",
@@ -126,6 +140,7 @@ fun NotificationScreen(
             dotColor = Color(0xFFEF4444) // red
         )
     )
+
 
     Box(
         modifier = modifier

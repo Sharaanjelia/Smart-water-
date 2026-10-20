@@ -29,12 +29,16 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.AccessTime
+import androidx.compose.material.icons.filled.Bolt
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.Download
 import androidx.compose.material.icons.filled.ExpandLess
 import androidx.compose.material.icons.filled.ExpandMore
+import androidx.compose.material.icons.filled.OpenInNew
+import androidx.compose.material.icons.filled.Payment
 import androidx.compose.material.icons.filled.QrCodeScanner
+import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
@@ -83,6 +87,12 @@ fun PaymentInstructionScreen(
     billId: String = "BILL-202504-001",
     customerName: String = "Budi Santoso",
     customerId: String = "1234567890",
+    invoiceUrl: String = "",
+    xenditInvoiceId: String = "",
+    isXenditLoading: Boolean = false,
+    onOpenXenditCheckout: () -> Unit = {},
+    onCheckPaymentStatus: () -> Unit = {},
+    onSimulateSandbox: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
@@ -114,6 +124,7 @@ fun PaymentInstructionScreen(
     }
 
     val isQris = paymentMethod.contains("QRIS", ignoreCase = true)
+    val fixedAmountText = "Nominal tetap: Rp %,d".format(totalAmount).replace(',', '.')
 
     Box(
         modifier = modifier
@@ -206,6 +217,82 @@ fun PaymentInstructionScreen(
                                 fontWeight = FontWeight.Bold,
                                 color = Color(0xFF0F172A)
                             )
+                        }
+                    }
+                }
+
+                if (invoiceUrl.isNotBlank()) {
+                    Spacer(modifier = Modifier.height(14.dp))
+                    Card(
+                        shape = RoundedCornerShape(16.dp),
+                        colors = CardDefaults.cardColors(containerColor = Color(0xFFF0FDF4)),
+                        border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFFBBF7D0)),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Column(modifier = Modifier.padding(16.dp)) {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                modifier = Modifier.fillMaxWidth()
+                            ) {
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    Icon(
+                                        imageVector = Icons.Default.Payment,
+                                        contentDescription = null,
+                                        tint = Color(0xFF15803D),
+                                        modifier = Modifier.size(20.dp)
+                                    )
+                                    Spacer(modifier = Modifier.width(8.dp))
+                                    Text(
+                                        text = "Xendit Checkout Aktif",
+                                        fontWeight = FontWeight.Bold,
+                                        fontSize = 14.sp,
+                                        color = Color(0xFF166534)
+                                    )
+                                }
+                                Box(
+                                    modifier = Modifier
+                                        .clip(RoundedCornerShape(6.dp))
+                                        .background(Color(0xFFDCFCE7))
+                                        .padding(horizontal = 8.dp, vertical = 3.dp)
+                                ) {
+                                    Text(
+                                        text = "XENDIT ONLINE",
+                                        fontWeight = FontWeight.Bold,
+                                        fontSize = 10.sp,
+                                        color = Color(0xFF15803D)
+                                    )
+                                }
+                            }
+                            Spacer(modifier = Modifier.height(8.dp))
+                            Text(
+                                text = "Halaman pembayaran Xendit resmi telah disiapkan. Anda dapat membayar dengan QRIS, Virtual Account (BCA, Mandiri, BRI, BNI), atau E-Wallet.",
+                                fontSize = 12.sp,
+                                lineHeight = 16.sp,
+                                color = Color(0xFF1E293B)
+                            )
+                            Spacer(modifier = Modifier.height(12.dp))
+                            Button(
+                                onClick = onOpenXenditCheckout,
+                                shape = RoundedCornerShape(12.dp),
+                                colors = ButtonDefaults.buttonColors(
+                                    containerColor = Color(0xFF15803D),
+                                    contentColor = Color.White
+                                ),
+                                modifier = Modifier.fillMaxWidth()
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.OpenInNew,
+                                    contentDescription = null,
+                                    modifier = Modifier.size(16.dp)
+                                )
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Text(
+                                    text = "Buka Halaman Checkout Xendit",
+                                    fontSize = 13.sp,
+                                    fontWeight = FontWeight.Bold
+                                )
+                            }
                         }
                     }
                 }
@@ -487,57 +574,157 @@ fun PaymentInstructionScreen(
 
                 Spacer(modifier = Modifier.height(26.dp))
 
-                // TOMBOL CEK STATUS PEMBAYARAN / SIMULASI SUKSES
-                Button(
-                    onClick = {
-                        isCheckingPayment = true
-                    },
-                    enabled = !isCheckingPayment,
-                    shape = RoundedCornerShape(26.dp),
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = SmartWaterPrimary,
-                        contentColor = Color.White
-                    ),
-                    elevation = ButtonDefaults.buttonElevation(defaultElevation = 6.dp),
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(52.dp)
-                        .shadow(
-                            elevation = 8.dp,
-                            shape = RoundedCornerShape(26.dp),
-                            ambientColor = Color(0x33005BBB),
-                            spotColor = Color(0x550066EE)
-                        )
-                        .testTag("btn_confirm_payment")
-                ) {
-                    if (isCheckingPayment) {
-                        CircularProgressIndicator(
-                            color = Color.White,
-                            strokeWidth = 2.dp,
-                            modifier = Modifier.size(22.dp)
-                        )
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Text(
-                            text = "Memverifikasi Pembayaran...",
-                            fontSize = 15.sp,
-                            fontWeight = FontWeight.Bold
-                        )
-                    } else {
+                if (xenditInvoiceId.isNotBlank() || invoiceUrl.isNotBlank()) {
+                    // Tombol 1: Cek Status Pembayaran ke Xendit
+                    Button(
+                        onClick = onCheckPaymentStatus,
+                        enabled = !isXenditLoading && !isCheckingPayment,
+                        shape = RoundedCornerShape(26.dp),
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = SmartWaterPrimary,
+                            contentColor = Color.White
+                        ),
+                        elevation = ButtonDefaults.buttonElevation(defaultElevation = 6.dp),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(52.dp)
+                            .shadow(
+                                elevation = 8.dp,
+                                shape = RoundedCornerShape(26.dp),
+                                ambientColor = Color(0x33005BBB),
+                                spotColor = Color(0x550066EE)
+                            )
+                            .testTag("btn_check_xendit_status")
+                    ) {
+                        if (isXenditLoading) {
+                            CircularProgressIndicator(
+                                color = Color.White,
+                                strokeWidth = 2.dp,
+                                modifier = Modifier.size(22.dp)
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text(
+                                text = "Mengecek ke Xendit...",
+                                fontSize = 15.sp,
+                                fontWeight = FontWeight.Bold
+                            )
+                        } else {
+                            Icon(
+                                imageVector = Icons.Default.Refresh,
+                                contentDescription = null,
+                                modifier = Modifier.size(20.dp)
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text(
+                                text = "Cek Status Pembayaran (Xendit)",
+                                fontSize = 15.sp,
+                                fontWeight = FontWeight.Bold
+                            )
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(10.dp))
+
+                    // Tombol 2: Simulasi Pembayaran Sandbox Xendit
+                    OutlinedButton(
+                        onClick = onSimulateSandbox,
+                        enabled = !isXenditLoading && !isCheckingPayment,
+                        shape = RoundedCornerShape(26.dp),
+                        border = androidx.compose.foundation.BorderStroke(1.5.dp, Color(0xFFF59E0B)),
+                        colors = ButtonDefaults.outlinedButtonColors(
+                            contentColor = Color(0xFFB45309)
+                        ),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(48.dp)
+                            .testTag("btn_simulate_sandbox")
+                    ) {
                         Icon(
-                            imageVector = Icons.Default.CheckCircle,
+                            imageVector = Icons.Default.Bolt,
                             contentDescription = null,
+                            tint = Color(0xFFF59E0B),
                             modifier = Modifier.size(20.dp)
                         )
                         Spacer(modifier = Modifier.width(8.dp))
                         Text(
-                            text = if (isQris) "Simulasi Scan & Bayar" else "Saya Sudah Bayar",
-                            fontSize = 16.sp,
-                            fontWeight = FontWeight.Bold
+                            text = "Simulasi Bayar Sandbox (Test Mode)",
+                            fontSize = 14.sp,
+                            fontWeight = FontWeight.SemiBold
                         )
+                    }
+
+                    Spacer(modifier = Modifier.height(8.dp))
+
+                    // Tombol 3: Manual Fallback
+                    Button(
+                        onClick = { isCheckingPayment = true },
+                        enabled = !isCheckingPayment,
+                        shape = RoundedCornerShape(26.dp),
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = Color(0xFFF1F5F9),
+                            contentColor = Color(0xFF475569)
+                        ),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(44.dp)
+                    ) {
+                        Text(
+                            text = "Konfirmasi Manual Tanpa Xendit",
+                            fontSize = 13.sp,
+                            fontWeight = FontWeight.Medium
+                        )
+                    }
+                } else {
+                    // Fallback normal saat Xendit tidak dipakai
+                    Button(
+                        onClick = { isCheckingPayment = true },
+                        enabled = !isCheckingPayment,
+                        shape = RoundedCornerShape(26.dp),
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = SmartWaterPrimary,
+                            contentColor = Color.White
+                        ),
+                        elevation = ButtonDefaults.buttonElevation(defaultElevation = 6.dp),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(52.dp)
+                            .shadow(
+                                elevation = 8.dp,
+                                shape = RoundedCornerShape(26.dp),
+                                ambientColor = Color(0x33005BBB),
+                                spotColor = Color(0x550066EE)
+                            )
+                            .testTag("btn_confirm_payment")
+                    ) {
+                        if (isCheckingPayment) {
+                            CircularProgressIndicator(
+                                color = Color.White,
+                                strokeWidth = 2.dp,
+                                modifier = Modifier.size(22.dp)
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text(
+                                text = "Memverifikasi Pembayaran...",
+                                fontSize = 15.sp,
+                                fontWeight = FontWeight.Bold
+                            )
+                        } else {
+                            Icon(
+                                imageVector = Icons.Default.CheckCircle,
+                                contentDescription = null,
+                                modifier = Modifier.size(20.dp)
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text(
+                                text = if (isQris) "Simulasi Scan & Bayar" else "Saya Sudah Bayar",
+                                fontSize = 16.sp,
+                                fontWeight = FontWeight.Bold
+                            )
+                        }
                     }
                 }
 
-                // Efek saat tombol diverifikasi
+                // Efek saat tombol konfirmasi manual diverifikasi
                 LaunchedEffect(isCheckingPayment) {
                     if (isCheckingPayment) {
                         delay(1500)

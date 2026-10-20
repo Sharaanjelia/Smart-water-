@@ -1,0 +1,15 @@
+{
+  "name": "smart-water-xendit-backend",
+  "version": "1.0.0",
+  "description": "Backend Webhook & Invoice Service untuk Xendit Payment Gateway Smart Water",
+  "main": "xendit-server.js",
+  "scripts": {
+    "start": "node xendit-server.js",
+    "dev": "node --watch xendit-server.js"
+  },
+  "dependencies": {
+    "express": "^4.19.2",
+    "firebase-admin": "^12.0.0",
+    "dotenv": "^16.4.5"
+  }
+}

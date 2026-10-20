@@ -1,6 +1,10 @@
 package com.example.ui.screens
 
+import android.Manifest
+import android.content.pm.PackageManager
 import android.widget.Toast
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -36,6 +40,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -52,6 +57,8 @@ import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.core.content.ContextCompat
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.ui.components.ReportMeterTipsCard
 import com.example.ui.components.SmartWaterBottomBar
 import com.example.ui.components.SmartWaterTab
@@ -86,6 +93,38 @@ fun ReportMeterScreen(
 ) {
     val context = LocalContext.current
     var isFlashOn by remember { mutableStateOf(false) }
+
+    val authRepo = remember { com.example.data.repository.AuthRepository.getInstance() }
+    val meterRepo = remember { com.example.data.repository.MeterRepository.getInstance() }
+    val currentUser by authRepo.currentUser.collectAsStateWithLifecycle()
+    val history by meterRepo.readingsHistory.collectAsStateWithLifecycle()
+
+    var hasCameraPermission by remember {
+        mutableStateOf(
+            ContextCompat.checkSelfPermission(
+                context,
+                Manifest.permission.CAMERA
+            ) == PackageManager.PERMISSION_GRANTED
+        )
+    }
+
+    val permissionLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.RequestPermission()
+    ) { isGranted ->
+        hasCameraPermission = isGranted
+    }
+
+    LaunchedEffect(Unit) {
+        if (!hasCameraPermission) {
+            permissionLauncher.launch(Manifest.permission.CAMERA)
+        }
+    }
+
+    val latestReading = history.firstOrNull()
+    val displayMeterValue = latestReading?.meterValue?.ifEmpty { "00000" } ?: "00000"
+    val displayName = currentUser?.fullName?.ifEmpty { "Pelanggan" } ?: "Pelanggan"
+    val displayMeterNumber = currentUser?.meterNumber?.ifEmpty { "-" } ?: "-"
+    val displayLastReadDate = latestReading?.period ?: "Belum ada laporan"
 
     Box(
         modifier = modifier
@@ -181,6 +220,8 @@ fun ReportMeterScreen(
                 // Viewfinder Card
                 WaterMeterCameraViewfinder(
                     onTapToFocus = onStartScan,
+                    hasCameraPermission = hasCameraPermission,
+                    isFlashOn = isFlashOn,
                     modifier = Modifier.fillMaxWidth()
                 )
 
@@ -235,7 +276,7 @@ fun ReportMeterScreen(
                                         color = Color(0xFF0F172A)
                                     )
                                     Text(
-                                        text = "No. Meter 12345678",
+                                        text = "No. Meter $displayMeterNumber",
                                         fontSize = 12.sp,
                                         color = Color(0xFF64748B)
                                     )
@@ -298,14 +339,13 @@ fun ReportMeterScreen(
                                             modifier = Modifier.size(12.dp)
                                         )
                                     }
-
                                     Spacer(modifier = Modifier.height(6.dp))
 
                                     // Odometer Digit Blocks: [0] [1] [0] [0] [0] m³
                                     Row(
                                         verticalAlignment = Alignment.CenterVertically
                                     ) {
-                                        val digits = currentMeterValue.padStart(5, '0')
+                                        val digits = displayMeterValue.padStart(5, '0')
                                         Row(
                                             horizontalArrangement = Arrangement.spacedBy(3.dp),
                                             modifier = Modifier.testTag("meter_number_digits")
@@ -335,7 +375,7 @@ fun ReportMeterScreen(
                                             text = "m³",
                                             fontSize = 14.sp,
                                             fontWeight = FontWeight.Bold,
-                                            color = Color(0xFF0F2942)
+                                            color = Color(0xFF0F172A)
                                         )
                                     }
                                 }
@@ -372,7 +412,7 @@ fun ReportMeterScreen(
                                             color = Color(0xFF64748B)
                                         )
                                         Text(
-                                            text = "Budi Santoso",
+                                            text = displayName,
                                             fontSize = 12.sp,
                                             fontWeight = FontWeight.Bold,
                                             color = Color(0xFF0F172A)
@@ -404,7 +444,7 @@ fun ReportMeterScreen(
                                             color = Color(0xFF64748B)
                                         )
                                         Text(
-                                            text = "01 April 2025",
+                                            text = displayLastReadDate,
                                             fontSize = 12.sp,
                                             fontWeight = FontWeight.Bold,
                                             color = Color(0xFF0F172A)

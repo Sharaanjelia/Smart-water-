@@ -24,12 +24,16 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.AccountBalance
 import androidx.compose.material.icons.filled.AccountBalanceWallet
+import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Computer
+import androidx.compose.material.icons.filled.Payment
 import androidx.compose.material.icons.filled.QrCodeScanner
+import androidx.compose.material.icons.filled.Security
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.RadioButton
@@ -44,7 +48,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.testTag
@@ -55,59 +58,59 @@ import com.example.ui.theme.SmartWaterPrimary
 
 /**
  * Screen 15: Pilih Metode Pembayaran
- * - Top Bar: Back arrow, "Pilih Metode Pembayaran"
- * - Blue Header Card:
- *    - "Total Tagihan"
- *    - "Rp 150.000"
- *    - "Metode Pembayaran"
- * - List of payment methods:
- *    1. QRIS - "Scan QR Code" (default selected)
- *    2. Transfer Bank - "BCA, Mandiri, BNI, BRI"
- *    3. E-Wallet - "GoPay, OVO, DANA"
- *    4. Virtual Account - "Permata, BCA, Mandiri"
- * - Bottom Bar: "Lanjutkan" (Solid blue)
+ * Integrasi resmi Xendit Payment Gateway (Checkout / Invoices)
  */
 @Composable
 fun PaymentMethodScreen(
     onNavigateBack: () -> Unit,
     onProceedToSuccess: (paymentMethod: String) -> Unit,
-    totalAmount: String = "Rp 150.000",
+    totalAmount: String = "Rp 150.800",
+    isLoading: Boolean = false,
     modifier: Modifier = Modifier
 ) {
-    var selectedMethod by remember { mutableStateOf("QRIS") }
+    var selectedMethod by remember { mutableStateOf("Xendit Checkout") }
 
     val paymentOptions = listOf(
         PaymentOption(
+            id = "Xendit Checkout",
+            name = "Xendit Checkout",
+            description = "QRIS, Semua Bank (BCA, Mandiri, BRI, BNI), OVO, DANA",
+            icon = Icons.Default.Payment,
+            iconBg = Color(0xFFEFF6FF),
+            iconColor = Color(0xFF2563EB),
+            badge = "Rekomendasi • Instan"
+        ),
+        PaymentOption(
             id = "QRIS",
-            name = "QRIS",
-            description = "Scan QR Code",
+            name = "QRIS Xendit",
+            description = "Scan via GoPay, OVO, DANA, BCA, Mandiri",
             icon = Icons.Default.QrCodeScanner,
             iconBg = Color(0xFFEFF6FF),
             iconColor = Color(0xFF2563EB)
         ),
         PaymentOption(
-            id = "Transfer Bank",
-            name = "Transfer Bank",
-            description = "BCA, Mandiri, BNI, BRI",
-            icon = Icons.Default.AccountBalance,
-            iconBg = Color(0xFFF3E8FF),
-            iconColor = Color(0xFF7C3AED)
+            id = "Virtual Account",
+            name = "Virtual Account Bank",
+            description = "BCA, Mandiri, BRI, BNI, Permata (Xendit VA)",
+            icon = Icons.Default.Computer,
+            iconBg = Color(0xFFE0F2FE),
+            iconColor = Color(0xFF0284C7)
         ),
         PaymentOption(
             id = "E-Wallet",
-            name = "E-Wallet",
-            description = "GoPay, OVO, DANA",
+            name = "E-Wallet (OVO / DANA / ShopeePay)",
+            description = "Pembayaran instan langsung dari dompet digital",
             icon = Icons.Default.AccountBalanceWallet,
             iconBg = Color(0xFFFFEDD5),
             iconColor = Color(0xFFEA580C)
         ),
         PaymentOption(
-            id = "Virtual Account",
-            name = "Virtual Account",
-            description = "Permata, BCA, Mandiri",
-            icon = Icons.Default.Computer,
-            iconBg = Color(0xFFE0F2FE),
-            iconColor = Color(0xFF0284C7)
+            id = "Transfer Bank",
+            name = "Transfer Bank Manual",
+            description = "Konfirmasi struk transfer manual ke PDAM",
+            icon = Icons.Default.AccountBalance,
+            iconBg = Color(0xFFF3E8FF),
+            iconColor = Color(0xFF7C3AED)
         )
     )
 
@@ -175,7 +178,7 @@ fun PaymentMethodScreen(
                             .padding(20.dp)
                     ) {
                         Text(
-                            text = "Total Tagihan",
+                            text = "Total Tagihan Air",
                             fontSize = 13.sp,
                             fontWeight = FontWeight.Medium,
                             color = Color.White.copy(alpha = 0.85f)
@@ -195,59 +198,60 @@ fun PaymentMethodScreen(
                         Spacer(modifier = Modifier.height(8.dp))
 
                         Text(
-                            text = "Metode Pembayaran",
+                            text = "Metode Pembayaran Resmi Xendit Gateway",
                             fontSize = 12.sp,
                             fontWeight = FontWeight.Medium,
-                            color = Color.White.copy(alpha = 0.8f)
+                            color = Color.White.copy(alpha = 0.9f)
                         )
                     }
                 }
 
                 Spacer(modifier = Modifier.height(20.dp))
 
-                // Payment Method Items
-                Column(
-                    verticalArrangement = Arrangement.spacedBy(12.dp)
-                ) {
-                    paymentOptions.forEach { option ->
-                        val isSelected = selectedMethod == option.id
+                // Payment Options List
+                paymentOptions.forEach { option ->
+                    val isSelected = selectedMethod == option.id
 
-                        Card(
+                    Card(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(vertical = 5.dp)
+                            .shadow(
+                                elevation = if (isSelected) 4.dp else 1.dp,
+                                shape = RoundedCornerShape(14.dp),
+                                ambientColor = if (isSelected) Color(0x22005BBB) else Color(0x0A000000)
+                            )
+                            .border(
+                                width = if (isSelected) 2.dp else 1.dp,
+                                color = if (isSelected) SmartWaterPrimary else Color(0xFFE2E8F0),
+                                shape = RoundedCornerShape(14.dp)
+                            )
+                            .clickable { selectedMethod = option.id }
+                            .testTag("payment_option_${option.id}"),
+                        shape = RoundedCornerShape(14.dp),
+                        colors = CardDefaults.cardColors(
+                            containerColor = if (isSelected) Color(0xFFF0F7FF) else Color.White
+                        )
+                    ) {
+                        Column(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .shadow(
-                                    elevation = if (isSelected) 4.dp else 2.dp,
-                                    shape = RoundedCornerShape(16.dp),
-                                    ambientColor = Color(0x10000000),
-                                    spotColor = Color(0x15000000)
-                                )
-                                .border(
-                                    width = if (isSelected) 2.dp else 1.dp,
-                                    color = if (isSelected) SmartWaterPrimary else Color(0xFFE2E8F0),
-                                    shape = RoundedCornerShape(16.dp)
-                                )
-                                .clickable { selectedMethod = option.id }
-                                .testTag("payment_option_${option.id.lowercase().replace(" ", "_")}"),
-                            shape = RoundedCornerShape(16.dp),
-                            colors = CardDefaults.cardColors(
-                                containerColor = if (isSelected) Color(0xFFF0F7FF) else Color.White
-                            )
+                                .padding(14.dp)
                         ) {
                             Row(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .padding(16.dp),
+                                modifier = Modifier.fillMaxWidth(),
                                 verticalAlignment = Alignment.CenterVertically,
                                 horizontalArrangement = Arrangement.SpaceBetween
                             ) {
                                 Row(
-                                    verticalAlignment = Alignment.CenterVertically
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    modifier = Modifier.weight(1f)
                                 ) {
-                                    // Option Icon Box
+                                    // Icon Box
                                     Box(
                                         modifier = Modifier
-                                            .size(46.dp)
-                                            .clip(RoundedCornerShape(12.dp))
+                                            .size(44.dp)
+                                            .clip(CircleShape)
                                             .background(option.iconBg),
                                         contentAlignment = Alignment.Center
                                     ) {
@@ -261,17 +265,36 @@ fun PaymentMethodScreen(
 
                                     Spacer(modifier = Modifier.width(14.dp))
 
-                                    Column {
-                                        Text(
-                                            text = option.name,
-                                            fontSize = 15.sp,
-                                            fontWeight = FontWeight.Bold,
-                                            color = Color(0xFF0F172A)
-                                        )
-                                        Spacer(modifier = Modifier.height(2.dp))
+                                    Column(modifier = Modifier.weight(1f)) {
+                                        Row(verticalAlignment = Alignment.CenterVertically) {
+                                            Text(
+                                                text = option.name,
+                                                fontSize = 15.sp,
+                                                fontWeight = FontWeight.SemiBold,
+                                                color = Color(0xFF0F172A)
+                                            )
+                                            if (option.badge != null) {
+                                                Spacer(modifier = Modifier.width(8.dp))
+                                                Box(
+                                                    modifier = Modifier
+                                                        .clip(RoundedCornerShape(6.dp))
+                                                        .background(Color(0xFFDBEAFE))
+                                                        .padding(horizontal = 6.dp, vertical = 2.dp)
+                                                ) {
+                                                    Text(
+                                                        text = option.badge,
+                                                        fontSize = 10.sp,
+                                                        fontWeight = FontWeight.Bold,
+                                                        color = Color(0xFF1D4ED8)
+                                                    )
+                                                }
+                                            }
+                                        }
+                                        Spacer(modifier = Modifier.height(3.dp))
                                         Text(
                                             text = option.description,
                                             fontSize = 12.sp,
+                                            lineHeight = 16.sp,
                                             color = Color(0xFF64748B)
                                         )
                                     }
@@ -291,6 +314,32 @@ fun PaymentMethodScreen(
                     }
                 }
 
+                Spacer(modifier = Modifier.height(16.dp))
+
+                // Security & Official Gateway Badge
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(10.dp))
+                        .background(Color(0xFFF1F5F9))
+                        .padding(horizontal = 14.dp, vertical = 10.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Security,
+                        contentDescription = "Keamanan",
+                        tint = Color(0xFF059669),
+                        modifier = Modifier.size(20.dp)
+                    )
+                    Spacer(modifier = Modifier.width(10.dp))
+                    Text(
+                        text = "Didukung resmi oleh Xendit Payment Gateway. Enkripsi 256-bit dan berlisensi Bank Indonesia.",
+                        fontSize = 11.sp,
+                        lineHeight = 15.sp,
+                        color = Color(0xFF475569)
+                    )
+                }
+
                 Spacer(modifier = Modifier.height(24.dp))
             }
 
@@ -303,6 +352,7 @@ fun PaymentMethodScreen(
             ) {
                 Button(
                     onClick = { onProceedToSuccess(selectedMethod) },
+                    enabled = !isLoading,
                     shape = RoundedCornerShape(26.dp),
                     colors = ButtonDefaults.buttonColors(
                         containerColor = SmartWaterPrimary,
@@ -320,11 +370,25 @@ fun PaymentMethodScreen(
                         )
                         .testTag("payment_lanjutkan_button")
                 ) {
-                    Text(
-                        text = "Lanjutkan",
-                        fontSize = 16.sp,
-                        fontWeight = FontWeight.Bold
-                    )
+                    if (isLoading) {
+                        CircularProgressIndicator(
+                            color = Color.White,
+                            strokeWidth = 2.dp,
+                            modifier = Modifier.size(22.dp)
+                        )
+                        Spacer(modifier = Modifier.width(10.dp))
+                        Text(
+                            text = "Membuat Invoice Xendit...",
+                            fontSize = 15.sp,
+                            fontWeight = FontWeight.Bold
+                        )
+                    } else {
+                        Text(
+                            text = if (selectedMethod == "Xendit Checkout") "Lanjut ke Pembayaran Xendit" else "Lanjutkan",
+                            fontSize = 16.sp,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
                 }
             }
         }
@@ -337,5 +401,6 @@ private data class PaymentOption(
     val description: String,
     val icon: ImageVector,
     val iconBg: Color,
-    val iconColor: Color
+    val iconColor: Color,
+    val badge: String? = null
 )

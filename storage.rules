@@ -1,0 +1,44 @@
+rules_version = '2';
+
+// Craft rules based on data in your Firestore database
+// allow write: if firestore.get(
+//    /databases/(default)/documents/users/$(request.auth.uid)).data.isAdmin;
+service firebase.storage {
+  match /b/{bucket}/o {
+
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    function isOwner(uid) {
+      return isAuthenticated() && request.auth.uid == uid;
+    }
+
+    function isAdmin() {
+      return isAuthenticated() && (
+        request.auth.token.role == 'admin' ||
+        firestore.get(/databases/(default)/documents/users/$(request.auth.uid)).data.role == 'admin'
+      );
+    }
+
+    // Direktori Foto Pembacaan Meter Air
+    // Path: meter_photos/{uid}/{recordId}.jpg
+    match /meter_photos/{uid}/{fileName} {
+      // Pelanggan hanya dapat membaca fotonya sendiri, Admin dapat membaca seluruh foto laporan pelanggan
+      allow read: if isOwner(uid) || isAdmin();
+
+      // Pelanggan hanya dapat mengunggah ke folder UID miliknya dengan batas ukuran 10MB dan tipe gambar
+      allow write: if isOwner(uid) &&
+        request.resource.size < 10 * 1024 * 1024 &&
+        request.resource.contentType.matches('image/.*');
+
+      // Admin berhak menghapus file jika diperlukan
+      allow delete: if isAdmin();
+    }
+
+    // Default deny untuk seluruh file/path lainnya
+    match /{allPaths=**} {
+      allow read, write: if false;
+    }
+  }
+}

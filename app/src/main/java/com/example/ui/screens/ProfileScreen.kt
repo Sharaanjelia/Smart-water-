@@ -23,6 +23,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.automirrored.filled.Logout
+import androidx.compose.material.icons.filled.AccountBalanceWallet
 import androidx.compose.material.icons.filled.ArrowDropDown
 import androidx.compose.material.icons.filled.ArrowDropUp
 import androidx.compose.material.icons.filled.CameraAlt
@@ -64,6 +65,7 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.ui.theme.SmartWaterPrimary
 
 /**
@@ -89,6 +91,7 @@ fun ProfileScreen(
     onNavigateToReport: () -> Unit,
     onNavigateToNotification: () -> Unit,
     onNavigateToSettings: () -> Unit,
+    onNavigateToWallet: () -> Unit,
     onLogout: () -> Unit,
     modifier: Modifier = Modifier
 ) {
@@ -100,12 +103,13 @@ fun ProfileScreen(
     var isAccountExpanded by remember { mutableStateOf(true) }
 
     val authRepo = remember { com.example.data.repository.AuthRepository.getInstance() }
-    val currentUser by authRepo.currentUser.androidx.lifecycle.compose.collectAsStateWithLifecycle()
-    val name = currentUser?.fullName?.ifEmpty { "Budi Santoso" } ?: "Budi Santoso"
-    val custId = currentUser?.customerId?.ifEmpty { "12345678" } ?: "12345678"
-    val phone = currentUser?.phoneNumber?.ifEmpty { "0812-3456-7890" } ?: "0812-3456-7890"
-    val meterNo = currentUser?.meterNumber?.ifEmpty { "12345678" } ?: "12345678"
-    val address = currentUser?.address?.ifEmpty { "Jl. Mawar No. 10, Sumbar" } ?: "Jl. Mawar No. 10, Sumbar"
+    val currentUser by authRepo.currentUser.collectAsStateWithLifecycle()
+    val name = currentUser?.fullName?.ifEmpty { "Pelanggan Smart Water" } ?: "Pelanggan Smart Water"
+    val custId = currentUser?.customerId?.ifEmpty { "-" } ?: "-"
+    val phone = currentUser?.phoneNumber?.ifEmpty { "-" } ?: "-"
+    val meterNo = currentUser?.meterNumber?.ifEmpty { "-" } ?: "-"
+    val address = currentUser?.address?.ifEmpty { "-" } ?: "-"
+    val email = currentUser?.email?.ifEmpty { if (phone != "-") "$phone@smartwater.local" else "-" } ?: if (phone != "-") "$phone@smartwater.local" else "-"
 
     Box(
         modifier = modifier
@@ -283,9 +287,9 @@ fun ProfileScreen(
                                     icon = Icons.Default.Email,
                                     iconColor = Color(0xFF8B5CF6), // Purple
                                     title = "Email",
-                                    subtitle = "budi@email.com",
+                                    subtitle = email,
                                     onClick = {
-                                        showDetailDialog = "Alamat Email" to "budi@email.com\nStatus: Terverifikasi untuk e-Faktur tagihan"
+                                        showDetailDialog = "Alamat Email" to "$email\nStatus: Terverifikasi untuk akun Smart Water"
                                     },
                                     testTag = "profile_item_email"
                                 )
@@ -333,6 +337,17 @@ fun ProfileScreen(
                                     subtitle = "Notifikasi, keamanan, dan bantuan",
                                     onClick = onNavigateToSettings,
                                     testTag = "profile_item_settings"
+                                )
+                                HorizontalDivider(color = Color(0xFFF1F5F9), thickness = 1.dp)
+
+                                // Wallet Operator Item
+                                ProfileInfoItem(
+                                    icon = Icons.Default.AccountBalanceWallet,
+                                    iconColor = Color(0xFF10B981),
+                                    title = "Wallet Operator",
+                                    subtitle = "Saldo, QR, dan penarikan ke bank",
+                                    onClick = onNavigateToWallet,
+                                    testTag = "profile_item_wallet"
                                 )
                                 HorizontalDivider(color = Color(0xFFF1F5F9), thickness = 1.dp)
 
